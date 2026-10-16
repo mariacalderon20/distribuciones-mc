@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distribuciones MC — Panel Facturación</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Helvetica Neue', sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+  /* ══ HEADER ══ */
+  .header {
+    background: #1a4a2e; padding: 14px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 50;
+    box-shadow: 0 2px 10px rgba(0,0,0,.2);
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .logo { width: 36px; height: 36px; background: rgba(255,255,255,.15); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 13px; }
+  .header h1 { color: #fff; font-size: 17px; font-weight: 700; }
+  .header p  { color: rgba(255,255,255,.6); font-size: 12px; margin-top: 1px; }
+  .badge-live { background: #22c55e; color: #fff; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+  .dot-live { width: 7px; height: 7px; background: #fff; border-radius: 50%; animation: pulse 1.4s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ══ TABS ══ */
+  .tabs { background: #fff; border-bottom: 1px solid #e4e7ec; display: flex; padding: 0 24px; }
+  .tab { padding: 13px 20px; font-size: 14px; color: #667085; cursor: pointer; border-bottom: 3px solid transparent; font-weight: 500; display: flex; align-items: center; gap: 7px; }
+  .tab.active { color: #1a4a2e; border-bottom-color: #1a4a2e; font-weight: 700; }
+  .n-badge { background: #dc3545; color: #fff; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+
+  /* ══ CONTENIDO ══ */
+  .content { max-width: 900px; margin: 0 auto; padding: 20px 20px 40px; }
+
+  /* ══ TARJETA PEDIDO ══ */
+  .pedido-card {
+    background: #fff; border-radius: 14px; margin-bottom: 16px;
+    border: 1px solid #e4e7ec;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    overflow: hidden;
+    animation: slideIn .3s ease;
+  }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+
+  .pedido-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 16px 18px; background: #f8faf7;
+    border-bottom: 1px solid #e4e7ec;
+  }
+  .p-cliente { font-size: 17px; font-weight: 700; color: #1a4a2e; }
+  .p-meta { font-size: 12px; color: #667085; margin-top: 3px; }
+  .badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+  .badge-pend { background: #fff3cd; color: #856404; }
+  .badge-fact { background: #d1e7dd; color: #0a3622; }
+
+  /* ══ TABLA ══ */
+  .tabla-wrap { overflow-x: auto; padding: 0 18px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+  th { background: #f8faf7; padding: 8px 10px; text-align: left; font-weight: 600; color: #475467; border-bottom: 2px solid #e4e7ec; white-space: nowrap; }
+  td { padding: 9px 10px; border-bottom: 1px solid #f2f4f7; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  .fam-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; flex-shrink: 0; }
+  .cod-tag { font-size: 11px; color: #667085; background: #f2f4f7; border-radius: 4px; padding: 1px 5px; }
+  .qty-pill { background: #1a4a2e; color: #fff; border-radius: 6px; padding: 2px 8px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+
+  /* ══ INPUT PRECIO ══ */
+  .price-in {
+    width: 80px; padding: 6px 8px; border: 2px solid #d0d5dd;
+    border-radius: 8px; font-size: 13px; font-weight: 700;
+    color: #1a4a2e; text-align: right; outline: none;
+    transition: border-color .15s;
+  }
+  .price-in:focus { border-color: #1a4a2e; background: #f0faf0; }
+  .price-changed { border-color: #e65100 !important; background: #fff8e1 !important; }
+
+  /* ══ TOTAL ══ */
+  .total-row {
+    display: flex; justify-content: flex-end; align-items: center;
+    padding: 12px 18px; background: #f8faf7;
+    border-top: 2px solid #1a4a2e;
+    font-size: 16px; font-weight: 800; color: #1a4a2e;
+    gap: 10px;
+  }
+  .total-label { font-size: 14px; color: #475467; font-weight: 500; }
+
+  /* ══ ACCIONES ══ */
+  .acciones { display: flex; gap: 8px; padding: 14px 18px; border-top: 1px solid #e4e7ec; background: #fff; flex-wrap: wrap; }
+  .btn-copiar {
+    flex: 1; min-width: 140px; padding: 10px 16px;
+    background: #0d6efd; color: #fff; border: none;
+    border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: background .15s;
+  }
+  .btn-copiar:hover { background: #0b5ed7; }
+  .btn-fact {
+    flex: 1; min-width: 140px; padding: 10px 16px;
+    background: #1a4a2e; color: #fff; border: none;
+    border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: background .15s;
+  }
+  .btn-fact:hover { background: #163d24; }
+  .btn-eliminar {
+    padding: 10px 14px; background: transparent; color: #dc3545;
+    border: 1.5px solid #dc3545; border-radius: 9px;
+    font-size: 13px; cursor: pointer; transition: all .15s;
+  }
+  .btn-eliminar:hover { background: #dc3545; color: #fff; }
+
+  /* ══ VACÍO ══ */
+  .empty { text-align: center; padding: 60px 20px; color: #aaa; }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty p { font-size: 15px; }
+
+  /* ══ TOAST ══ */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: #1a4a2e; color: #fff; padding: 13px 22px;
+    border-radius: 12px; font-size: 14px; font-weight: 600;
+    opacity: 0; transition: opacity .3s; pointer-events: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,.2); z-index: 999;
+  }
+  .toast.show { opacity: 1; }
+
+  /* ══ LOADING ══ */
+  .loading { text-align: center; padding: 60px; color: #667085; font-size: 15px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">MC</div>
+    <div>
+      <h1>Panel de Facturación — Distribuciones MC</h1>
+      <p>Conectado con A3ERP · Tiempo real</p>
+    </div>
+  </div>
+  <div class="badge-live"><div class="dot-live"></div><span id="estado-conn">Conectando…</span></div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="setTab('pendientes')" id="tab-pend">
+    ⏳ Pendientes <span class="n-badge" id="nbadge">0</span>
+  </div>
+  <div class="tab" onclick="setTab('facturados')" id="tab-fact">
+    ✅ Facturados
+  </div>
+</div>
+
+<div class="content">
+  <div id="vista-pendientes"><div class="loading">Cargando pedidos…</div></div>
+  <div id="vista-facturados" style="display:none"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ══ FIREBASE ══ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// ╔══════════════════════════════════════════╗
+// ║  PON AQUÍ TU CONFIGURACIÓN DE FIREBASE   ║
+// ╚══════════════════════════════════════════╝
+const firebaseConfig = {
+  apiKey:            "AIzaSyCVx6XlMcCSGoE39T_V0wDPc4A782wswqU",
+  authDomain:        "distribuciones-mc.firebaseapp.com",
+  databaseURL:       "https://distribuciones-mc-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:         "distribuciones-mc",
+  storageBucket:     "distribuciones-mc.firebasestorage.app",
+  messagingSenderId: "702611080430",
+  appId:             "1:702611080430:web:9688938413bf4dc77fdfff"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+const pedidosRef = ref(db, 'pedidos');
+
+document.getElementById('estado-conn').textContent = 'En directo ✓';
+
+// Escucha cambios en tiempo real
+onValue(pedidosRef, (snapshot) => {
+  const raw = snapshot.val() || {};
+  window._pedidos = Object.entries(raw).map(([key, val]) => ({ _key: key, ...val }))
+    .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  window._renderAll();
+});
+
+// Exponer funciones de escritura
+window._updatePedido = (key, data) => update(ref(db, 'pedidos/' + key), data);
+window._deletePedido = (key) => remove(ref(db, 'pedidos/' + key));
+</script>
+
+<script>
+// ══ COLORES FAMILIA ══
+const FC = {
+  "ACEITES":      "#f9a825", "ACEITUNAS":    "#388e3c",
+  "ARROCES":      "#ef6c00", "CAFÉS":        "#5d4037",
+  "CAVAS":        "#c2185b", "CONSERVAS":    "#1565c0",
+  "ESPECIAS":     "#e65100", "FRUTOS SECOS": "#827717",
+  "LEGUMBRES":    "#7b1fa2", "GINEBRAS":     "#283593",
+  "WHISKYS":      "#bf360c", "RONES":        "#ff6f00",
+  "VODKA":        "#0277bd", "VINOS BLANCOS":"#f9a825",
+  "VINOS TINTOS": "#880e4f", "VERMUTS":      "#2e7d32",
+  "LICORES":      "#4527a0", "SALSAS":       "#f57f17",
+  "TOMATES":      "#c62828", "PASTAS":       "#558b2f",
+};
+
+let tabActual = 'pendientes';
+window._pedidos = [];
+
+function setTab(t) {
+  tabActual = t;
+  document.getElementById('tab-pend').classList.toggle('active', t === 'pendientes');
+  document.getElementById('tab-fact').classList.toggle('active', t === 'facturados');
+  document.getElementById('vista-pendientes').style.display = t === 'pendientes' ? 'block' : 'none';
+  document.getElementById('vista-facturados').style.display = t === 'facturados' ? 'block' : 'none';
+}
+window.setTab = setTab;
+
+window._renderAll = function () {
+  const pend = window._pedidos.filter(p => p.estado === 'pendiente');
+  const fact = window._pedidos.filter(p => p.estado === 'facturado');
+
+  document.getElementById('nbadge').textContent = pend.length;
+
+  renderVista('vista-pendientes', pend, true);
+  renderVista('vista-facturados', fact, false);
+};
+
+function renderVista(containerId, pedidos, editable) {
+  const cont = document.getElementById(containerId);
+  if (!pedidos.length) {
+    cont.innerHTML = `<div class="empty">
+      <div class="empty-icon">${editable ? '🎉' : '📂'}</div>
+      <p>${editable ? 'No hay pedidos pendientes' : 'No hay pedidos facturados aún'}</p>
+    </div>`;
+    return;
+  }
+  cont.innerHTML = pedidos.map(p => renderPedido(p, editable)).join('');
+}
+
+function renderPedido(p, editable) {
+  const lineas = p.lineas || [];
+  const rows = lineas.map(l => {
+    const dot = FC[l.fam] || '#9e9e9e';
+    const precioActual = l.precioFinal ?? l.precioBase ?? 0;
+    const precioCell = editable
+      ? `<input class="price-in" id="pi-${p._key}-${l.cod}"
+           value="${precioActual.toFixed(2)}"
+           oninput="onPrecioChange('${p._key}','${l.cod}',this)">`
+      : `<strong style="color:#1a4a2e">${precioActual.toFixed(2)} €</strong>`;
+    const sub = precioActual * (l.qty || 1) * (l.mult || 1);
+    return `<tr>
+      <td><span class="cod-tag">${l.cod}</span></td>
+      <td><span class="fam-dot" style="background:${dot}"></span><strong>${l.nombre}</strong></td>
+      <td><span class="qty-pill">${l.qty} ${l.unit}</span></td>
+      <td>${precioCell}</td>
+      <td style="text-align:right;font-weight:700;color:#1a4a2e" id="sub-${p._key}-${l.cod}">${sub.toFixed(2)} €</td>
+    </tr>`;
+  }).join('');
+
+  const acciones = editable
+    ? `<div class="acciones">
+        <button class="btn-copiar" onclick="copiarA3('${p._key}')">📋 Copiar para A3ERP</button>
+        <button class="btn-fact" onclick="marcarFacturado('${p._key}')">✅ Marcar como facturado</button>
+        <button class="btn-eliminar" onclick="eliminar('${p._key}')">🗑</button>
+      </div>`
+    : `<div class="acciones">
+        <button class="btn-copiar" onclick="copiarA3('${p._key}')">📋 Volver a copiar</button>
+        <button class="btn-eliminar" onclick="eliminar('${p._key}')">🗑 Eliminar</button>
+      </div>`;
+
+  return `<div class="pedido-card" id="card-${p._key}">
+    <div class="pedido-head">
+      <div>
+        <div class="p-cliente">${p.cliente}</div>
+        <div class="p-meta">Nº ${p.numCli}${p.pob ? ' · ' + p.pob : ''} &nbsp;|&nbsp; ${p.fecha} a las ${p.hora}</div>
+      </div>
+      <span class="badge ${editable ? 'badge-pend' : 'badge-fact'}">${editable ? '⏳ Pendiente' : '✅ Facturado'}</span>
+    </div>
+    <div class="tabla-wrap">
+      <table>
+        <thead>
+          <tr><th>Cód.</th><th>Producto</th><th>Cantidad</th><th>€ / ud</th><th style="text-align:right">Subtotal</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="total-row">
+      <span class="total-label">TOTAL PEDIDO:</span>
+      <span id="tot-${p._key}">${(p.total || 0).toFixed(2)} €</span>
+    </div>
+    ${acciones}
+  </div>`;
+}
+
+// ══ CAMBIAR PRECIO ══
+function onPrecioChange(key, cod, input) {
+  const val = parseFloat(input.value);
+  input.classList.toggle('price-changed', !isNaN(val));
+  if (isNaN(val)) return;
+
+  const p = window._pedidos.find(x => x._key === key); if (!p) return;
+  const l = (p.lineas || []).find(x => x.cod === cod); if (!l) return;
+
+  const sub = val * (l.qty || 1) * (l.mult || 1);
+  const subEl = document.getElementById(`sub-${key}-${cod}`);
+  if (subEl) subEl.textContent = sub.toFixed(2) + ' €';
+
+  // Recalcular total
+  let tot = 0;
+  (p.lineas || []).forEach(ll => {
+    const inp = document.getElementById(`pi-${key}-${ll.cod}`);
+    const precio = inp ? parseFloat(inp.value) || ll.precioFinal || ll.precioBase : ll.precioFinal || ll.precioBase;
+    tot += precio * (ll.qty || 1) * (ll.mult || 1);
+  });
+  const totEl = document.getElementById(`tot-${key}`);
+  if (totEl) totEl.textContent = tot.toFixed(2) + ' €';
+}
+window.onPrecioChange = onPrecioChange;
+
+// ══ COPIAR PARA A3ERP ══
+function copiarA3(key) {
+  const p = window._pedidos.find(x => x._key === key); if (!p) return;
+  let tot = 0;
+  let txt = `PEDIDO DISTRIBUCIONES MC\n`;
+  txt += `${'─'.repeat(55)}\n`;
+  txt += `Cliente  : ${p.cliente}\n`;
+  txt += `Nº A3ERP : ${p.numCli}${p.pob ? '  |  ' + p.pob : ''}\n`;
+  txt += `Fecha    : ${p.fecha}  ${p.hora}\n`;
+  txt += `${'─'.repeat(55)}\n`;
+  txt += `${'CÓD.'.padEnd(12)} ${'DESCRIPCIÓN'.padEnd(32)} ${'CANT.'.padEnd(10)} ${'€/UD'.padStart(7)}  ${'TOTAL'.padStart(9)}\n`;
+  txt += `${'─'.repeat(55)}\n`;
+
+  (p.lineas || []).forEach(l => {
+    const inp = document.getElementById(`pi-${key}-${l.cod}`);
+    const precio = inp ? parseFloat(inp.value) || l.precioFinal : l.precioFinal;
+    const sub = precio * (l.qty || 1) * (l.mult || 1);
+    tot += sub;
+    txt += `${l.cod.padEnd(12)} ${l.nombre.substring(0, 30).padEnd(32)} ${(l.qty + ' ' + l.unit).padEnd(10)} ${precio.toFixed(2).padStart(7)}€  ${sub.toFixed(2).padStart(8)}€\n`;
+  });
+
+  txt += `${'─'.repeat(55)}\n`;
+  txt += `TOTAL FACTURA: ${tot.toFixed(2)} €\n`;
+  txt += `\nGenerado por app Distribuciones MC`;
+
+  navigator.clipboard.writeText(txt)
+    .then(() => toast('✅ ¡Copiado! Pega en A3ERP con Ctrl+V'))
+    .catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = txt; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      toast('✅ ¡Copiado!');
+    });
+}
+window.copiarA3 = copiarA3;
+
+// ══ MARCAR FACTURADO ══
+async function marcarFacturado(key) {
+  const p = window._pedidos.find(x => x._key === key); if (!p) return;
+
+  // Guardar precios modificados
+  const lineasActualizadas = (p.lineas || []).map(l => {
+    const inp = document.getElementById(`pi-${key}-${l.cod}`);
+    const precio = inp ? parseFloat(inp.value) || l.precioFinal : l.precioFinal;
+    return { ...l, precioFinal: precio, subtotal: precio * (l.qty || 1) * (l.mult || 1) };
+  });
+
+  let tot = lineasActualizadas.reduce((s, l) => s + l.subtotal, 0);
+
+  try {
+    if (window._updatePedido) {
+      await window._updatePedido(key, { estado: 'facturado', lineas: lineasActualizadas, total: tot });
+      toast('✅ Pedido marcado como facturado');
+    }
+  } catch (e) {
+    toast('❌ Error: ' + e.message);
+  }
+}
+window.marcarFacturado = marcarFacturado;
+
+// ══ ELIMINAR ══
+async function eliminar(key) {
+  if (!confirm('¿Eliminar este pedido?')) return;
+  try {
+    if (window._deletePedido) await window._deletePedido(key);
+    toast('🗑 Pedido eliminado');
+  } catch (e) {
+    toast('❌ Error: ' + e.message);
+  }
+}
+window.eliminar = eliminar;
+
+// ══ TOAST ══
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// INIT
+window._renderAll();
+</script>
+</body>
+</html>
