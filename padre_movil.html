@@ -327,12 +327,16 @@ function ir(n) {
 window.ir = ir;
 
 // ══ CLIENTES ══
+// Guardamos índice para recuperar datos al tocar
+let _cliCache = [];
+
 function filtrarCli() {
   const q = document.getElementById('sc').value.toLowerCase().trim();
   const todos = [...puntuales.map(p => [p.id, p.nombre, p.tel || 'Puntual']), ...CLIENTES];
   const res = q ? todos.filter(c => c[1].toLowerCase().includes(q) || String(c[0]).includes(q)) : todos.slice(0, 50);
-  document.getElementById('clist').innerHTML = res.slice(0, 50).map(c => `
-    <div class="cli-item" onclick="selCli('${c[0]}', ${JSON.stringify(c[1])}, ${JSON.stringify(c[2] || '')})">
+  _cliCache = res.slice(0, 50);
+  document.getElementById('clist').innerHTML = _cliCache.map((c, i) => `
+    <div class="cli-item" data-idx="${i}">
       <span class="cli-num">${c[0]}</span>
       <div>
         <span class="cli-name">${c[1]}</span>
@@ -341,6 +345,23 @@ function filtrarCli() {
     </div>`).join('');
 }
 window.filtrarCli = filtrarCli;
+
+// Delegación de eventos — funciona en cualquier móvil
+document.getElementById('clist').addEventListener('click', function(e) {
+  const item = e.target.closest('.cli-item');
+  if (!item) return;
+  const idx = parseInt(item.dataset.idx);
+  const c = _cliCache[idx];
+  if (c) selCli(c[0], c[1], c[2] || '');
+});
+document.getElementById('clist').addEventListener('touchend', function(e) {
+  const item = e.target.closest('.cli-item');
+  if (!item) return;
+  e.preventDefault();
+  const idx = parseInt(item.dataset.idx);
+  const c = _cliCache[idx];
+  if (c) selCli(c[0], c[1], c[2] || '');
+});
 
 function selCli(id, nombre, pob) {
   CLI = { id, nombre, pob };
@@ -354,16 +375,32 @@ function selCli(id, nombre, pob) {
 window.selCli = selCli;
 
 // ══ FAMILIAS ══
+let _famsCache = [];
+
 function initFams() {
-  const fams = [...new Set(PRODS.map(p => p[0]))];
-  document.getElementById('fam-grid').innerHTML = fams.map(f => {
+  _famsCache = [...new Set(PRODS.map(p => p[0]))];
+  document.getElementById('fam-grid').innerHTML = _famsCache.map((f, i) => {
     const c = fc(f);
-    return `<button class="fam-btn" style="background:${c.bg};border-color:${c.bo};color:${c.tx}" onclick="selFam('${f}')">${f}</button>`;
+    return `<button class="fam-btn" data-fam="${i}" style="background:${c.bg};border-color:${c.bo};color:${c.tx}">${f}</button>`;
   }).join('');
 }
 
 function selFam(f) { famSel = f; ir(3); }
 window.selFam = selFam;
+
+document.getElementById('fam-grid').addEventListener('click', function(e) {
+  const btn = e.target.closest('.fam-btn');
+  if (!btn) return;
+  const f = _famsCache[parseInt(btn.dataset.fam)];
+  if (f) selFam(f);
+});
+document.getElementById('fam-grid').addEventListener('touchend', function(e) {
+  const btn = e.target.closest('.fam-btn');
+  if (!btn) return;
+  e.preventDefault();
+  const f = _famsCache[parseInt(btn.dataset.fam)];
+  if (f) selFam(f);
+});
 
 // ══ PRODUCTOS ══
 function getUnits(p) {
@@ -384,7 +421,7 @@ function renderProds() {
     const selU = item ? item.unit : units[0];
     const qty = item ? item.qty : 0;
     const upills = units.map(u =>
-      `<span class="upill${u === selU ? ' on' : ''}" onclick="setUnit('${p[1]}','${u}')">${u}</span>`
+      `<span class="upill${u === selU ? ' on' : ''}" data-cod="${p[1]}" data-unit="${u}">${u}</span>`
     ).join('');
     return `<div class="prod-card" style="background:${c.bg};border-color:${c.bo}">
       <div class="prod-head">
@@ -397,9 +434,9 @@ function renderProds() {
       <div class="prod-foot">
         <div style="display:flex;gap:6px;flex-wrap:wrap;flex:1">${upills}</div>
         <div class="qty-wrap">
-          <button class="qbtn" style="background:${c.bo}" onclick="chQty('${p[1]}',-1)">−</button>
+          <button class="qbtn" data-cod="${p[1]}" data-delta="-1" style="background:${c.bo}">−</button>
           <span class="qnum" id="bq-${p[1]}">${qty}</span>
-          <button class="qbtn" style="background:${c.bo}" onclick="chQty('${p[1]}',1)">+</button>
+          <button class="qbtn" data-cod="${p[1]}" data-delta="1" style="background:${c.bo}">+</button>
         </div>
       </div>
     </div>`;
@@ -424,6 +461,29 @@ function chQty(cod, d) {
   updCart();
 }
 window.chQty = chQty;
+
+// Delegación global para productos (botones + / − y píldoras de unidad)
+function _prodDelegate(e) {
+  // Botón cantidad
+  const qbtn = e.target.closest('.qbtn');
+  if (qbtn) {
+    e.preventDefault();
+    chQty(qbtn.dataset.cod, parseInt(qbtn.dataset.delta));
+    return;
+  }
+  // Píldora unidad
+  const upill = e.target.closest('.upill');
+  if (upill) {
+    e.preventDefault();
+    setUnit(upill.dataset.cod, upill.dataset.unit);
+    return;
+  }
+  // Botón atrás grande
+  const back = e.target.closest('.btn-back');
+  if (back) { e.preventDefault(); return; }
+}
+document.getElementById('plist').addEventListener('click', _prodDelegate);
+document.getElementById('plist').addEventListener('touchend', _prodDelegate);
 
 function updCart() {
   const items = Object.entries(carrito);
