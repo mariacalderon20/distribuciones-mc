@@ -346,22 +346,21 @@ function filtrarCli() {
 }
 window.filtrarCli = filtrarCli;
 
-// Delegación de eventos — funciona en cualquier móvil
-document.getElementById('clist').addEventListener('click', function(e) {
-  const item = e.target.closest('.cli-item');
-  if (!item) return;
-  const idx = parseInt(item.dataset.idx);
-  const c = _cliCache[idx];
-  if (c) selCli(c[0], c[1], c[2] || '');
-});
-document.getElementById('clist').addEventListener('touchend', function(e) {
-  const item = e.target.closest('.cli-item');
-  if (!item) return;
-  e.preventDefault();
-  const idx = parseInt(item.dataset.idx);
-  const c = _cliCache[idx];
-  if (c) selCli(c[0], c[1], c[2] || '');
-});
+// Delegación de eventos — se registra tras DOMContentLoaded
+function _initClistEvents() {
+  const el = document.getElementById('clist');
+  if (!el) return;
+  function handler(e) {
+    const item = e.target.closest('.cli-item');
+    if (!item) return;
+    if (e.type === 'touchend') e.preventDefault();
+    const idx = parseInt(item.dataset.idx);
+    const c = _cliCache[idx];
+    if (c) selCli(c[0], c[1], c[2] || '');
+  }
+  el.addEventListener('click', handler);
+  el.addEventListener('touchend', handler);
+}
 
 function selCli(id, nombre, pob) {
   CLI = { id, nombre, pob };
@@ -388,19 +387,19 @@ function initFams() {
 function selFam(f) { famSel = f; ir(3); }
 window.selFam = selFam;
 
-document.getElementById('fam-grid').addEventListener('click', function(e) {
-  const btn = e.target.closest('.fam-btn');
-  if (!btn) return;
-  const f = _famsCache[parseInt(btn.dataset.fam)];
-  if (f) selFam(f);
-});
-document.getElementById('fam-grid').addEventListener('touchend', function(e) {
-  const btn = e.target.closest('.fam-btn');
-  if (!btn) return;
-  e.preventDefault();
-  const f = _famsCache[parseInt(btn.dataset.fam)];
-  if (f) selFam(f);
-});
+function _initFamEvents() {
+  const el = document.getElementById('fam-grid');
+  if (!el) return;
+  function handler(e) {
+    const btn = e.target.closest('.fam-btn');
+    if (!btn) return;
+    if (e.type === 'touchend') e.preventDefault();
+    const f = _famsCache[parseInt(btn.dataset.fam)];
+    if (f) selFam(f);
+  }
+  el.addEventListener('click', handler);
+  el.addEventListener('touchend', handler);
+}
 
 // ══ PRODUCTOS ══
 function getUnits(p) {
@@ -482,8 +481,12 @@ function _prodDelegate(e) {
   const back = e.target.closest('.btn-back');
   if (back) { e.preventDefault(); return; }
 }
-document.getElementById('plist').addEventListener('click', _prodDelegate);
-document.getElementById('plist').addEventListener('touchend', _prodDelegate);
+function _initPlistEvents() {
+  const el = document.getElementById('plist');
+  if (!el) return;
+  el.addEventListener('click', _prodDelegate);
+  el.addEventListener('touchend', _prodDelegate);
+}
 
 function updCart() {
   const items = Object.entries(carrito);
@@ -589,8 +592,13 @@ function toast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// INIT
-filtrarCli();
+// INIT — esperamos a que el DOM esté completamente listo
+document.addEventListener('DOMContentLoaded', function() {
+  _initClistEvents();
+  _initFamEvents();
+  _initPlistEvents();
+  filtrarCli();
+});
 </script>
 </body>
 </html>
